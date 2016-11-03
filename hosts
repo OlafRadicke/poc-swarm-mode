@@ -1,0 +1,23 @@
+[NFS-Host]
+nfs-host.localdomain ansible_host=192.168.124.35 ansible_connection=ssh ansible_user=root
+
+[NFS-Host:vars]
+clientsaccess="192.168.124.0/255.255.255.0(rw,async,no_root_squash,no_subtree_check)"
+
+[lead-manager]
+manager1.localdomain ansible_host=192.168.124.94 ansible_connection=ssh ansible_user=fedora become=yes
+
+[manager]
+manager2.localdomain ansible_host=192.168.124.152 ansible_connection=ssh ansible_user=fedora become=yes
+manager3.localdomain ansible_host=192.168.124.47 ansible_connection=ssh ansible_user=fedora become=yes
+
+[worker]
+worker1.localdomain ansible_host=192.168.124.240 ansible_connection=ssh ansible_user=fedora become=yes
+worker2.localdomain ansible_host=192.168.124.173 ansible_connection=ssh ansible_user=fedora become=yes
+worker3.localdomain ansible_host=192.168.124.146 ansible_connection=ssh ansible_user=fedora become=yes
+
+
+[all-docker-host:children]
+lead-manager
+manager
+worker

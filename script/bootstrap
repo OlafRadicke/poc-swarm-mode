@@ -1,0 +1,6 @@
+#1/usr/bin
+set -e
+set -x
+
+export ANSIBLE_HOST_KEY_CHECKING=False
+ansible-playbook -i ./hosts ./cluster-setup.yml

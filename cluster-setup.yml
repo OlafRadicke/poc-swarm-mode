@@ -1,0 +1,137 @@
+---
+
+# - name: Setup NFS shares
+#   hosts: "NFS-Host"
+#   vars:
+#     - coreos_shares: '["mongodb", "nginx"]'
+#   tasks:
+#     - name: Create nfs direktories
+#       file:
+#           path: "/srv/coreos-nfs-shares/{{ item }}"
+#           state: "directory"
+#           mode: 0755
+#       with_items: "{{ coreos_shares }}"
+#     - name: "Update nfs config"
+#       lineinfile:
+#           dest: "/etc/exports.d/coreos-cluster-shares.exports"
+#           line: "/srv/coreos-nfs-shares/{{ item }}  {{ clientsaccess }}"
+#           create: "yes"
+#           state: "present"
+#           mode: "0644"
+#       with_items: "{{ coreos_shares }}"
+#     - name: "refreash exportfs"
+#       shell: "exportfs -ra"
+
+- name: Setup python raw on all node
+  hosts: all-docker-host
+  become: yes
+  become_user: root
+  gather_facts: no
+  tasks:
+    - name: Install python
+      raw: dnf install -y python2 python2-dnf libselinux-python
+
+- name: Setup docker on all node
+  hosts: all-docker-host
+  become: yes
+  become_user: root
+  tasks:
+    - name: Copy rpm repo config
+      copy:
+        src: ./files/docker.repo
+        dest: /etc/yum.repos.d/docker.repo
+    - name: install the latest version docker
+      dnf:
+        name: docker-engine
+        state: latest
+    - name: Start docker
+      service:
+        name: docker.service
+        state: started
+        enabled: yes
+    # - name: Stop firewall
+    #   service:
+    #     name: firewalld.service
+    #     state: stopped
+    #     enabled: no
+
+- name: Setup lead manager
+  hosts: lead-manager
+  become: yes
+  become_user: root
+  tasks:
+    - name: Safe lead_manager_ip
+      become: false
+      local_action: shell printf "{{ ansible_host }}" > /tmp/lead_manager_ip
+    - name: Init cluster
+      command: "docker swarm init --advertise-addr {{ ansible_host }}"
+      ignore_errors: yes
+    - name: Get worker token
+      command: "docker swarm join-token -q worker"
+      register: wtoken
+    - debug:
+        msg: "worker_token:  {{ wtoken.stdout }}'"
+    - name: Safe worker token
+      become: false
+      local_action: shell printf "{{ wtoken.stdout }}" > /tmp/worker_token
+    - name: Get manager token
+      command: "docker swarm join-token -q manager"
+      register: mtoken
+    - debug:
+        msg: "worker_token:  {{ mtoken.stdout }}"
+    - name: Safe manager token
+      become: false
+      local_action: shell printf "{{ mtoken.stdout }}" > /tmp/manager_token
+
+- name: Add worker
+  hosts: worker
+  become: yes
+  become_user: root
+  tasks:
+    - name: Read worker token
+      become: false
+      local_action: command cat /tmp/worker_token
+      register: "wtoken"
+    - debug:
+        msg: "worker_token:  {{ wtoken.stdout }}"
+    - name: Read lead_manager_ip
+      become: false
+      local_action: command cat /tmp/lead_manager_ip
+      register: "lead_manager_ip"
+    - debug:
+        msg: "lead_manager_ip:  {{ lead_manager_ip.stdout }}"
+    - name: Add cluster worker
+      command: "docker swarm join --token {{ wtoken.stdout }} {{ lead_manager_ip.stdout }}:2377"
+      ignore_errors: yes
+
+- name: Add manager
+  hosts: manager
+  become: yes
+  become_user: root
+  tasks:
+    - name: Read worker token
+      become: false
+      local_action: command cat /tmp/manager_token
+      register: "mtoken"
+    - debug:
+        msg: "manager_token:  {{ mtoken.stdout }}"
+    - name: Read lead_manager_ip
+      become: false
+      local_action: command cat /tmp/lead_manager_ip
+      register: "lead_manager_ip"
+    - debug:
+        msg: "lead_manager_ip:  {{ lead_manager_ip.stdout }}"
+    - name: Add cluster manager
+      command: "docker swarm join --token {{ mtoken.stdout }} {{ lead_manager_ip.stdout }}:2377"
+      ignore_errors: yes
+
+- name: Check result
+  hosts: lead-manager
+  become: yes
+  become_user: root
+  tasks:
+    - name: Check cluster state
+      command: "docker node ls"
+      register: "result"
+    - debug:
+        msg: "{{ result.stdout.split('\n') }}"

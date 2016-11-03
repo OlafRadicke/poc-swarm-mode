@@ -1,0 +1,28 @@
+#cloud-config
+
+users:
+   - default
+   - name: root
+     password: fedora
+     chpasswd: {expire: False}
+     ssh_pwauth: True
+   - name: fedora
+     password: fedora
+     chpasswd: {expire: False}
+     ssh_pwauth: True
+     ssh-authorized-keys:
+       - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA8KtKVcPt9ytYI9M6pE+C+emUkQXUhZYlvp0p8ne/GKBFbd2v7led6gdisuDVfKIvbK1sKCoOpHWncnpkQ/7j0Xoo22lBZkc9eUEt8pXCC9HHAfaNzB/dKu6W74KqqS1LSKij5bOCY+WZsSLYGXtNcXumBAzGvu9igBV2SBcTlusalDOmahTN2Fr71WRqxqUr+1LsPWIYzwQ9D9wVnOxdAPgHWe1azWDl4jEuEmp5DFWkARHwACsWBYHtx486Ts2IxJtcRzvloOgA/+x1kogC0WPuiLr6HT1B3vx3Ci3dXA71ljPOWuCnZ4KV7CqyZJg1f1D42KyLC40k5pRuLtUEyQ==
+   - name: user1
+     sudo: ['ALL=(ALL) NOPASSWD:ALL']
+     groups: root
+     ssh-authorized-keys:
+       - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA8KtKVcPt9ytYI9M6pE+C+emUkQXUhZYlvp0p8ne/GKBFbd2v7led6gdisuDVfKIvbK1sKCoOpHWncnpkQ/7j0Xoo22lBZkc9eUEt8pXCC9HHAfaNzB/dKu6W74KqqS1LSKij5bOCY+WZsSLYGXtNcXumBAzGvu9igBV2SBcTlusalDOmahTN2Fr71WRqxqUr+1LsPWIYzwQ9D9wVnOxdAPgHWe1azWDl4jEuEmp5DFWkARHwACsWBYHtx486Ts2IxJtcRzvloOgA/+x1kogC0WPuiLr6HT1B3vx3Ci3dXA71ljPOWuCnZ4KV7CqyZJg1f1D42KyLC40k5pRuLtUEyQ==
+
+user: fedora
+password: fedora
+chpasswd: {expire: False}
+ssh_pwauth: True
+ssh_authorized_keys:
+       - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA8KtKVcPt9ytYI9M6pE+C+emUkQXUhZYlvp0p8ne/GKBFbd2v7led6gdisuDVfKIvbK1sKCoOpHWncnpkQ/7j0Xoo22lBZkc9eUEt8pXCC9HHAfaNzB/dKu6W74KqqS1LSKij5bOCY+WZsSLYGXtNcXumBAzGvu9igBV2SBcTlusalDOmahTN2Fr71WRqxqUr+1LsPWIYzwQ9D9wVnOxdAPgHWe1azWDl4jEuEmp5DFWkARHwACsWBYHtx486Ts2IxJtcRzvloOgA/+x1kogC0WPuiLr6HT1B3vx3Ci3dXA71ljPOWuCnZ4KV7CqyZJg1f1D42KyLC40k5pRuLtUEyQ==
+
+timezone: Europe/Berlin

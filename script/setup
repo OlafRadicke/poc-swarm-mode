@@ -1,0 +1,48 @@
+#1/usr/bin
+set -e
+set -x
+set -u
+
+IMAGESPATH="/var/lib/libvirt/images"
+ISOPATH=/srv/ISOs
+
+# Fedora cloud image
+BASEIMAGE=Fedora-Cloud-Base-24-1.2.x86_64.qcow2
+BASEIMAGE_URL="https://download.fedoraproject.org/pub/fedora/linux/releases/24/CloudImages/x86_64/images/${BASEIMAGE}"
+
+# Fedora Atomic host
+#BASEIMAGE_URL="https://download.fedoraproject.org/pub/fedora/linux/releases/24/CloudImages/x86_64/images/${BASEIMAGE}"
+#BASEIMAGE_URL="https://download.fedoraproject.org/pub/alt/atomic/stable/Fedora-Atomic-24-20160921.0/CloudImages/x86_64/images/${BASEIMAGE}"
+
+# Download image
+wget -c - ${BASEIMAGE_URL} -O ./${BASEIMAGE} || echo return $?
+ls -lah
+
+mkdir -p ./ISOs
+for item in $( ls   ./cloud-init/); do
+	# Create vm images
+	cp -a -f ./${BASEIMAGE} ${IMAGESPATH}/${item}.qcow2
+
+	# Create/rest cloud-config
+	rm -f ${ISOPATH}/${item}-cidata.iso
+	genisoimage -output ${ISOPATH}/${item}-cidata.iso -volid cidata -joliet -rock ./cloud-init/${item}/user-data ./cloud-init/${item}/meta-data
+
+	# Create vm
+	virt-install \
+		--import \
+	    --name ${item} \
+		--ram 1024 \
+		--network bridge=virbr0 \
+  		--disk ${IMAGESPATH}/${item}.qcow2,format=qcow2,bus=virtio \
+  		--disk path=${ISOPATH}/${item}-cidata.iso,device=cdrom \
+		--os-type=linux &
+
+		sleep 5
+		# Get back ip
+		virsh domifaddr ${item}
+		virsh domiflist ${item}
+
+done
+
+virsh list
+arp -e
