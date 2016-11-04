@@ -36,6 +36,16 @@
   become: yes
   become_user: root
   tasks:
+    - name: Create docker cofig directory
+      file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+    - name: Copy docker config with enabled rest api
+      copy:
+        src: ./files/docker.conf
+        dest: /etc/systemd/system/docker.service.d/docker.conf
+    - name: Systemctl daemon-reload
+      command: "systemctl daemon-reload"
     - name: Copy rpm repo config
       copy:
         src: ./files/docker.repo
@@ -47,7 +57,7 @@
     - name: Start docker
       service:
         name: docker.service
-        state: started
+        state: restarted
         enabled: yes
     # - name: Stop firewall
     #   service:

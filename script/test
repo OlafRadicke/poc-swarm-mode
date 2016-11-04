@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+set -x
+
+PORT=4243
+HOST=192.168.124.94
+curl  http://${HOST}:${PORT}/info
