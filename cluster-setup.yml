@@ -145,3 +145,8 @@
       register: "result"
     - debug:
         msg: "{{ result.stdout.split('\n') }}"
+    - name: Check service state
+      command: "sudo docker service ls"
+      register: "result"
+    - debug:
+        msg: "{{ result.stdout.split('\n') }}"
