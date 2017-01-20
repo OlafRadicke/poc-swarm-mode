@@ -14,7 +14,7 @@ Prepare the cloud-init configurations under ./cloud-init with your public
 ssh-key and enter command
 
 ```
-./script/setup
+./script/bootstrap vm
 ```
 
 This script will download the cloud image of fedora. This can modified in the
@@ -27,7 +27,25 @@ A recall of this script will be reset all VMs.
 Prepare the ./hosts file with the correct IPs of the VMs and tham enter
 
 ```
-./script/bootstrap
+./script/bootstrap swarm
 ```
 
 This script will be calls the ansible playbook.
+
+# Trouble shooting #
+
+## DependencyWarning ##
+```
+ImportError: cannot import name DependencyWarning
+```
+Enter:
+```
+sudo pip uninstall requests
+sudo pip install requests
+sudo pip uninstall docopt
+sudo pip install docopt
+```
+And/or try:
+```
+sudo dnf install python-requests
+```

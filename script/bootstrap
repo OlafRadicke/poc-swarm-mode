@@ -1,6 +1,102 @@
-#!/usr/bin
+#!/usr/bin/bash
 set -e
 set -x
+set -u
 
-export ANSIBLE_HOST_KEY_CHECKING=False
-ansible-playbook -i ./hosts ./cluster-setup.yml
+IMAGESPATH="/var/lib/libvirt/images"
+ISOPATH=/srv/ISOs
+
+# Fedora cloud image
+BASEIMAGE=Fedora-Cloud-Base-25-1.3.x86_64.qcow2
+BASEIMAGE_URL="https://download.fedoraproject.org/pub/fedora/linux/releases/25/CloudImages/x86_64/images/${BASEIMAGE}"
+
+initDir(){
+    mkdir -p ${ISOPATH}
+}
+
+bootstrapSwarm(){
+    export ANSIBLE_HOST_KEY_CHECKING=False
+    ansible-playbook -i ./hosts ./cluster-setup.yml
+}
+
+downloadCloudImage(){
+  wget -c - ${BASEIMAGE_URL} -O ./${BASEIMAGE} || echo return $?
+  ls -lah
+}
+
+createVmImages(){
+    cp -a -f ./${BASEIMAGE} ${IMAGESPATH}/${1}.qcow2
+}
+
+setupCludConfig(){
+    # Create/rest cloud-config
+    rm -f ${ISOPATH}/${1}-cidata.iso
+    genisoimage -output ${ISOPATH}/${1}-cidata.iso \
+       -volid cidata \
+       -joliet \
+       -rock \
+       ./cloud-init/${1}/user-data \
+       ./cloud-init/${1}/meta-data
+}
+
+createVM(){
+    virt-install \
+      --import \
+        --name ${1} \
+      --ram 1024 \
+      --network bridge=virbr0 \
+        --disk ${IMAGESPATH}/${1}.qcow2,format=qcow2,bus=virtio \
+        --disk path=${ISOPATH}/${1}-cidata.iso,device=cdrom \
+      --os-type=linux &
+}
+
+getIPofVM(){
+    virsh domifaddr ${item}
+    virsh domiflist ${item}
+}
+
+abputVMs(){
+    virsh list
+    arp -e
+    for item in $( virsh list --name); do
+        echo "${item}"
+        sudo virsh domiflist ${item}
+    done
+    cat /var/lib/libvirt/dnsmasq/*.status
+}
+
+bootstrapVM(){
+    initDir
+    downloadCloudImage
+    mkdir -p ./ISOs
+    for item in $( ls ./cloud-init/); do
+      	createVmImages ${item}
+        setupCludConfig ${item}
+        createVM ${item}
+    		sleep 5
+        getIPofVM
+    done
+    abputVMs
+}
+
+case "$1" in
+        vm)
+            bootstrapVM
+            exit 0
+            ;;
+
+        swarm)
+            bootstrapSwarm
+            exit 0
+            ;;
+
+        help)
+            echo $"Usage: $0 {vm|swarm|help}"
+            exit 0
+            ;;
+
+        *)
+            exit 0
+            ;;
+
+esac
