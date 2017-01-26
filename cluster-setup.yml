@@ -22,7 +22,7 @@
 #     - name: "refreash exportfs"
 #       shell: "exportfs -ra"
 
-- name: Setup python raw on all node
+- name: Setup python raw on all node with dnf
   hosts: all-docker-host
   become: yes
   become_user: root
@@ -30,6 +30,17 @@
   tasks:
     - name: Install python
       raw: dnf install -y python2 python2-dnf libselinux-python
+      ignore_errors: yes
+
+- name: Setup python raw on all node with apt-get
+  hosts: all-docker-host
+  become: yes
+  become_user: root
+  gather_facts: no
+  tasks:
+    - name: Install python
+      raw: apt-get install -y python
+      ignore_errors: yes
 
 - name: Setup docker on all node
   hosts: all-docker-host
@@ -50,10 +61,29 @@
       copy:
         src: ./files/docker.repo
         dest: /etc/yum.repos.d/docker.repo
+      when: ansible_distribution == 'Fedora'
+    - name: Create deb repo config
+      apt_repository:
+        repo: deb https://apt.dockerproject.org/repo ubuntu-xenial main
+        state: present
+        validate_certs: no
+      when: ansible_distribution == 'Ubuntu'
+    - name: Add atp key
+      apt_key:
+        url: "https://yum.dockerproject.org/gpg"
+        state: present
+      when: ansible_distribution == 'Ubuntu'
     - name: install the latest version docker
       dnf:
         name: docker-engine
         state: latest
+      when: ansible_distribution == 'Fedora'
+    - name: install the latest version docker
+      apt:
+        name: docker-engine
+        state: latest
+        allow_unauthenticated: yes
+      when: ansible_distribution == 'Ubuntu'
     - name: Start docker
       service:
         name: docker.service
