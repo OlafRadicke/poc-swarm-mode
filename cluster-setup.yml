@@ -122,6 +122,8 @@
     - name: Safe manager token
       become: false
       local_action: shell printf "{{ mtoken.stdout }}" > /tmp/manager_token
+    - name: Set manager node as drained
+      shell: "docker node update --availability drain $(hostname)"
 
 - name: Add worker
   hosts: worker
@@ -164,6 +166,8 @@
     - name: Add cluster manager
       command: "docker swarm join --token {{ mtoken.stdout }} {{ lead_manager_ip.stdout }}:2377"
       ignore_errors: yes
+    - name: Set manager node as drained
+      shell: "docker node update --availability drain $(hostname)"
 
 - name: Check result
   hosts: lead-manager
