@@ -1,4 +1,4 @@
-# Proof of concept - docker swarm mode #
+# Proof of concept - docker swarm mode with ubuntu cloud images #
 
 ## Requirements ##
 
@@ -8,7 +8,14 @@
 - wget
 - ansible 2.x
 
-## Create KVM VMs with fedora cloud images and cloud-config  ##
+## Create KVM VMs with ubuntu cloud images and CloudInit  ##
+
+### Externel documentation ###
+
+- [CloudInit](https://help.ubuntu.com/community/CloudInit)
+- [cloudinit](http://cloudinit.readthedocs.io/en/latest/topics/examples.html)
+- [CloudInit over webserver](http://foss-boss.blogspot.de/2010/12/cloud-instance-with-cloud-init-on-kvm.html)
+- [CloudInit over webserver II](https://pardini.net/blog/2016/11/05/running-ubuntu-cloud-images-with-cloud-init-on-all-infrastructure-from-cloud-to-bare-metal/)
 
 Prepare the cloud-init configurations under ./cloud-init with your public
 ssh-key and enter command

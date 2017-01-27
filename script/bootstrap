@@ -5,10 +5,15 @@ set -u
 
 IMAGESPATH="/var/lib/libvirt/images"
 ISOPATH=/srv/ISOs
+CLOUDINITPATH=/tmp/webcloudinits
 
-# Fedora cloud image
-BASEIMAGE=Fedora-Cloud-Base-25-1.3.x86_64.qcow2
-BASEIMAGE_URL="https://download.fedoraproject.org/pub/fedora/linux/releases/25/CloudImages/x86_64/images/${BASEIMAGE}"
+## Fedora cloud image
+# BASEIMAGE=Fedora-Cloud-Base-25-1.3.x86_64.qcow2
+# BASEIMAGE_URL="https://download.fedoraproject.org/pub/fedora/linux/releases/25/CloudImages/x86_64/images/${BASEIMAGE}"
+
+# Ubuntu
+BASEIMAGE=ubuntu-16.04-server-cloudimg-amd64-disk1.img
+BASEIMAGE_URL="https://cloud-images.ubuntu.com/releases/16.04/release/${BASEIMAGE}"
 
 initDir(){
     mkdir -p ${ISOPATH}
@@ -21,32 +26,37 @@ bootstrapSwarm(){
 
 downloadCloudImage(){
   wget -c - ${BASEIMAGE_URL} -O ./${BASEIMAGE} || echo return $?
+  qemu-img convert -f raw -O qcow2 ${BASEIMAGE} ${BASEIMAGE}.qcow2
   ls -lah
 }
 
 createVmImages(){
-    cp -a -f ./${BASEIMAGE} ${IMAGESPATH}/${1}.qcow2
+    cp -a -f ./${BASEIMAGE}.qcow2 ${IMAGESPATH}/${1}.qcow2
 }
 
 setupCludConfig(){
-    # Create/rest cloud-config
-    rm -f ${ISOPATH}/${1}-cidata.iso
-    genisoimage -output ${ISOPATH}/${1}-cidata.iso \
-       -volid cidata \
-       -joliet \
-       -rock \
-       ./cloud-init/${1}/user-data \
-       ./cloud-init/${1}/meta-data
+    # Create webserver cloud-config
+    cp ./cloud-init/${1}/user-data ${CLOUDINITPATH}/${1}/user-data
+    cp ./cloud-init/${1}/meta-data ${CLOUDINITPATH}/${1}/meta-data
+}
+
+startNginxContainer(){
+    docker run \
+       --name cloudinitserver \
+       -d \
+       -p 80:80 \
+       -v ${CLOUDINITPATH}:/usr/share/nginx/html:ro nginx:1 \
+   || docker restart cloudinitserver
 }
 
 createVM(){
     virt-install \
       --import \
-        --name ${1} \
+      --name ${1} \
       --ram 1024 \
       --network bridge=virbr0 \
-        --disk ${IMAGESPATH}/${1}.qcow2,format=qcow2,bus=virtio \
-        --disk path=${ISOPATH}/${1}-cidata.iso,device=cdrom \
+      --disk ${IMAGESPATH}/${1}.qcow2,format=qcow2,bus=virtio \
+      --boot kernel_args="ds=nocloud-net;s=http://192.168.122.1:8000" \
       --os-type=linux &
 }
 
@@ -68,12 +78,16 @@ abputVMs(){
 bootstrapVM(){
     initDir
     downloadCloudImage
-    mkdir -p ./ISOs
+    rm -Rvf ${CLOUDINITPATH}
+    mkdir -p ${CLOUDINITPATH}
     for item in $( ls ./cloud-init/); do
       	createVmImages ${item}
         setupCludConfig ${item}
+    done
+    startNginxContainer
+    for item in $( ls ./cloud-init/); do
         createVM ${item}
-    		sleep 5
+        sleep 5
         getIPofVM
     done
     abputVMs
