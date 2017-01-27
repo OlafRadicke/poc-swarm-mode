@@ -1,27 +1,5 @@
 ---
 
-# - name: Setup NFS shares
-#   hosts: "NFS-Host"
-#   vars:
-#     - coreos_shares: '["mongodb", "nginx"]'
-#   tasks:
-#     - name: Create nfs direktories
-#       file:
-#           path: "/srv/coreos-nfs-shares/{{ item }}"
-#           state: "directory"
-#           mode: 0755
-#       with_items: "{{ coreos_shares }}"
-#     - name: "Update nfs config"
-#       lineinfile:
-#           dest: "/etc/exports.d/coreos-cluster-shares.exports"
-#           line: "/srv/coreos-nfs-shares/{{ item }}  {{ clientsaccess }}"
-#           create: "yes"
-#           state: "present"
-#           mode: "0644"
-#       with_items: "{{ coreos_shares }}"
-#     - name: "refreash exportfs"
-#       shell: "exportfs -ra"
-
 - name: Setup python raw on all node with dnf
   hosts: all-docker-host
   become: yes
@@ -41,6 +19,42 @@
     - name: Install python
       raw: apt-get install -y python
       ignore_errors: yes
+
+- name: Setup NFS shares
+  hosts: "NFS-Host"
+  become: yes
+  become_user: root
+  vars:
+   - coreos_shares: '["rundeck", "rocketchat"]'
+  tasks:
+    - name: Create nfs direktories
+      file:
+         path: "/srv/nfsexports/{{ item }}"
+         state: "directory"
+         mode: 0755
+      with_items: "{{ coreos_shares }}"
+    - name: install nfs-kernel-server
+      dnf:
+        name: nfs-kernel-server
+        state: latest
+      when: ansible_distribution == 'Fedora'
+    - name: install nfs-kernel-server
+      apt:
+        name: nfs-kernel-server
+        state: latest
+        allow_unauthenticated: yes
+      when: ansible_distribution == 'Ubuntu'
+    - name: "Update nfs config"
+      lineinfile:
+         dest: "/etc/exports.d/nfsexports.exports"
+         line: "/srv/nfsexports/{{ item }}  {{ clientsaccess }}"
+         create: "yes"
+         state: "present"
+         mode: "0644"
+      with_items: "{{ coreos_shares }}"
+    - name: "refreash exportfs"
+      shell: "exportfs -ra"
+
 
 - name: Setup docker on all node
   hosts: all-docker-host
@@ -73,12 +87,12 @@
         url: "https://yum.dockerproject.org/gpg"
         state: present
       when: ansible_distribution == 'Ubuntu'
-    - name: install the latest version docker
+    - name: install the latest version of docker
       dnf:
         name: docker-engine
         state: latest
       when: ansible_distribution == 'Fedora'
-    - name: install the latest version docker
+    - name: install the latest version of docker
       apt:
         name: docker-engine
         state: latest
