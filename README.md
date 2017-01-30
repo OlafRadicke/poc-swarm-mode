@@ -5,6 +5,7 @@
 - genisoimage
 - bash
 - KVM/libvirt
+- libguestfs-tools-c
 - wget
 - ansible 2.x
 

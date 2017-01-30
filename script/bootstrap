@@ -14,9 +14,14 @@ CLOUDINITPATH=/tmp/webcloudinits
 # Ubuntu
 BASEIMAGE=ubuntu-16.04-server-cloudimg-amd64-disk1.img
 BASEIMAGE_URL="https://cloud-images.ubuntu.com/releases/16.04/release/${BASEIMAGE}"
+OS_VARIANT=ubuntu14.04
+KERNEL_IMAGE=vmlinuz-4.4.0-59-generic
+INITRD=initrd.img-4.4.0-59-generic
 
 initDir(){
     mkdir -p ${ISOPATH}
+    rm -Rvf ${CLOUDINITPATH}
+    mkdir -p ${CLOUDINITPATH}
 }
 
 bootstrapSwarm(){
@@ -30,12 +35,21 @@ downloadCloudImage(){
   ls -lah
 }
 
+extractKernel(){
+    virt-builder --get-kernel ./${BASEIMAGE}
+    cp -f  ${KERNEL_IMAGE} ${CLOUDINITPATH}/${KERNEL_IMAGE}
+    cp -f  ${INITRD} ${CLOUDINITPATH}/${INITRD}
+
+}
+
 createVmImages(){
-    cp -a -f ./${BASEIMAGE}.qcow2 ${IMAGESPATH}/${1}.qcow2
+    rsync -a ./${BASEIMAGE}.qcow2 ${IMAGESPATH}/${1}.qcow2
 }
 
 setupCludConfig(){
     # Create webserver cloud-config
+    rm -Rfv ${CLOUDINITPATH}/${1}
+    mkdir -p ${CLOUDINITPATH}/${1}
     cp ./cloud-init/${1}/user-data ${CLOUDINITPATH}/${1}/user-data
     cp ./cloud-init/${1}/meta-data ${CLOUDINITPATH}/${1}/meta-data
 }
@@ -50,14 +64,28 @@ startNginxContainer(){
 }
 
 createVM(){
+    virsh --connect qemu:///system destroy ${1} || echo "${1} is not exist ... [ok]"
+    virsh --connect qemu:///system undefine ${1} || echo "${1} is not exist ... [ok]"
     virt-install \
+      --debug \
+      --connect qemu:///system \
       --import \
       --name ${1} \
       --ram 1024 \
       --network bridge=virbr0 \
-      --disk ${IMAGESPATH}/${1}.qcow2,format=qcow2,bus=virtio \
-      --boot kernel_args="ds=nocloud-net;s=http://192.168.122.1:8000" \
-      --os-type=linux &
+      --os-type=linux \
+      --os-variant ${OS_VARIANT} \
+      --disk path=${IMAGESPATH}/${1}.qcow2,format=qcow2,bus=virtio,device=disk \
+      --boot hd,menu=on \
+      --boot kernel=${CLOUDINITPATH}/${KERNEL_IMAGE},kernel_args="root=/dev/vda1 ro ds=nocloud-net;seedfrom=http://192.168.122.1:80/${1}/" &
+      #--boot kernel=${CLOUDINITPATH}/${KERNEL_IMAGE},kernel_args="root=/dev/vda1 ro ds=nocloud-net;seedfrom=http://127.0.0.1:80/${1}/" &
+
+      #  qemu-kvm -m 1024 \
+      #      -drive file=${IMAGESPATH}/${1}.qcow2,format=qcow2,if=virtio,boot=on \
+      #      -append "root=/dev/vda1 ro ds=nocloud-net;seedfrom=http://127.0.0.1:80/${1}" \
+      #      -kernel ${CLOUDINITPATH}/${KERNEL_IMAGE} \
+      #      -initrd ${CLOUDINITPATH}/${INITRD} &
+#      -drive     -append 'root=/dev/vda1 ro ds=nocloud-net;s=http://127.0.0.1:80/${1}' &
 }
 
 getIPofVM(){
@@ -66,7 +94,8 @@ getIPofVM(){
 }
 
 abputVMs(){
-    virsh list
+    virsh list --all
+    virsh -q list
     arp -e
     for item in $( virsh list --name); do
         echo "${item}"
@@ -78,8 +107,7 @@ abputVMs(){
 bootstrapVM(){
     initDir
     downloadCloudImage
-    rm -Rvf ${CLOUDINITPATH}
-    mkdir -p ${CLOUDINITPATH}
+    extractKernel
     for item in $( ls ./cloud-init/); do
       	createVmImages ${item}
         setupCludConfig ${item}
@@ -87,9 +115,9 @@ bootstrapVM(){
     startNginxContainer
     for item in $( ls ./cloud-init/); do
         createVM ${item}
-        sleep 5
-        getIPofVM
     done
+    sleep 5
+    getIPofVM
     abputVMs
 }
 
