@@ -100,23 +100,27 @@
           url: "https://yum.dockerproject.org/gpg"
           state: present
       when: ansible_distribution == 'Ubuntu'
-    - name: install the latest version of docker
+    - name: install the latest version of docker (fedora)
       dnf:
           name: docker-engine
           state: latest
       when: ansible_distribution == 'Fedora'
-    - name: install the latest version of docker
+      notify:
+      - start docker
+    - name: install the latest version of docker (ubuntu)
       apt:
           name: docker-engine
           state: latest
           allow_unauthenticated: yes
       when: ansible_distribution == 'Ubuntu'
-    - name: Start docker
+      notify:
+      - start docker
+  handlers:
+    - name: start docker
       service:
           name: docker.service
           state: restarted
           enabled: yes
-
 
 - name: Setup lead manager
   hosts: lead-manager
@@ -191,6 +195,7 @@
       ignore_errors: yes
     - name: Set manager node as drained
       shell: "docker node update --availability drain $(hostname)"
+      ignore_errors: yes
 
 - name: Check result
   hosts: lead-manager
@@ -203,7 +208,7 @@
     - debug:
         msg: "{{ result.stdout.split('\n') }}"
     - name: Check service state
-      command: "sudo docker service ls"
+      command: "docker service ls"
       register: "result"
     - debug:
         msg: "{{ result.stdout.split('\n') }}"
