@@ -26,7 +26,7 @@ initDir(){
 
 bootstrapSwarm(){
     export ANSIBLE_HOST_KEY_CHECKING=False
-    ansible-playbook -i ./hosts ./cluster-setup.yml
+    ansible-playbook -i ./me-hosts ./cluster-setup.yml
 }
 
 downloadCloudImage(){
